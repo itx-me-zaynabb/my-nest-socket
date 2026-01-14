@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Message</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Arial, sans-serif;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #ece5dd;
+      }
+
+      .chat-container {
+        width: 100%;
+        max-width: 480px;
+        height: 90vh;
+        background: #efeae2;
+        display: flex;
+        flex-direction: column;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Header */
+      .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f0f2f5;
+        padding: 12px 15px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .chat-header img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+      }
+
+      .chat-header .info {
+        flex: 1;
+      }
+
+      .chat-header h3 {
+        font-size: 16px;
+      }
+
+      .chat-header span {
+        font-size: 12px;
+        color: #666;
+      }
+
+      /* Messages area */
+      .chat-messages {
+        flex: 1;
+        background-size: cover;
+        padding: 15px;
+        overflow-y: auto;
+      }
+
+      .message {
+        max-width: 75%;
+        margin-bottom: 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.4;
+        word-wrap: break-word;
+        position: relative;
+      }
+
+      .message.sent {
+        background: #dcf8c6;
+        margin-left: auto;
+        border-top-right-radius: 0;
+      }
+
+      .message.received {
+        background: #ffffff;
+        margin-right: auto;
+        border-top-left-radius: 0;
+      }
+
+      .timestamp {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-top: 3px;
+        text-align: right;
+      }
+
+      /* Input area */
+      .chat-input {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #f0f2f5;
+        border-top: 1px solid #ddd;
+      }
+
+      .chat-input input {
+        flex: 1;
+        padding: 10px 15px;
+        border-radius: 20px;
+        border: none;
+        outline: none;
+        font-size: 14px;
+      }
+
+      .chat-input button {
+        margin-left: 10px;
+        background: #008069;
+        border: none;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background 0.2s;
+        font-size: 16px;
+      }
+
+      .chat-input button:hover {
+        background: #006d5b;
+      }
+
+      .sender-name {
+        font-size: 12px;
+        color: #777;
+        margin-top: 4px;
+        text-align: right;
+        font-style: italic;
+      }
+
+      /* Different style for received messages */
+      .message.received .sender-name {
+        text-align: left;
+        color: #555;
+        font-weight: 500;
+      }
+
+      /* Responsive */
+      @media (max-width: 500px) {
+        .chat-container {
+          height: 100vh;
+          border-radius: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="chat-container">
+      <!-- Header -->
+      <div class="chat-header">
+        <img src="https://i.pravatar.cc/100?img=1" alt="User" />
+        <div class="info">
+          <h3>Friends Group</h3>
+          <span id="online">0 Online</span>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div id="chat-messages" class="chat-messages"></div>
+
+      <!-- Input -->
+      <div class="chat-input">
+        <input type="text" id="msg" placeholder="Type a message..." />
+        <button type="button" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+      const name = prompt('Enter your name:');
+      const socket = io('http://localhost:4000', {
+        query: { name: name },
+      });
+      function addMessage(msg, sender) {
+        const parent = document.getElementById('chat-messages');
+        let div = document.createElement('div');
+        div.classList.add('message', 'received');
+        div.innerHTML = `${msg}
+<span class="timestamp">${Date.now()}</span>
+<div class="sender-name">${sender}</div>
+`;
+        parent.appendChild(div);
+        parent.scrollTop = parent.scrollHeight;
+      }
+
+      function addMessageOwn(msg) {
+        const parent = document.getElementById('chat-messages');
+        let div = document.createElement('div');
+        div.classList.add('message', 'sent');
+        div.innerHTML = `${msg}
+<span class="timestamp">${Date.now()}</span>
+<div class="sender-name">You</div>
+`;
+        parent.appendChild(div);
+        parent.scrollTop = parent.scrollHeight;
+      }
+      function changeStatus(users) {
+        const element = document.getElementById('online');
+        element.innerText = `${users} Online`;
+      }
+
+      socket.on('connect', (data) => {
+        addMessageOwn(`Connected as ${name}`);
+      });
+      socket.on('user-joined', (msg) => {
+        addMessage('!' + msg.message, msg.name);
+      });
+      socket.on('user-left', (msg) => {
+        addMessage(msg);
+      });
+      socket.on('changeStatus', (users) => {
+        changeStatus(users);
+      });
+      socket.on('conversation', (data) => {
+        addMessage(data.message, data.name);
+      });
+      function sendMessage() {
+        const Input = document.getElementById('msg');
+        const message = Input.value;
+        if (message) {
+          socket.emit('conversation', message);
+          addMessageOwn(message);
+          Input.value = '';
+        } else {
+          alert('Please enter a message');
+        }
+      }
+    </script>
+  </body>
+</html>
